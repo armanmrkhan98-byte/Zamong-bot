@@ -1,0 +1,122 @@
+import asyncio
+import random
+from BinaryOptionsToolsV2.pocketoption import PocketOptionAsync
+
+SSID = '42["auth",{"session":"your_session_id_here","islive":1,"uid":12345,"platform":1}]'
+
+# --- ADD YOUR OTC PAIRS HERE ---
+OTC_PAIRS = [
+    "EURUSD_otc",
+    "GBPUSD_otc",
+    "USDJPY_otc",
+    "AUDUSD_otc",
+    "BTCUSD_otc",
+    "XAUUSD_otc",
+]
+
+TRADE_AMOUNT = 1.0
+TRADE_DURATION = 60
+
+async def main():
+    async with PocketOptionAsync(ssid=SSID) as client:
+        print("✅ Connected to Pocket Option")
+        balance = await client.balance()
+        print(f"💰 Current Balance: ${balance:.2f}")
+
+        # Select a random OTC pair (or replace with a fixed pair like "EURUSD_otc")
+        asset = random.choice(OTC_PAIRS)
+        print(f"📊 Analyzing OTC pair: {asset}")
+
+        candles = await client.get_candles(asset=asset, period=60, count=50)
+        if not candles:
+            print("❌ No candle data returned.")
+            return
+
+        close_prices = [c['close'] for c in candles]
+        sma_20 = sum(close_prices[-20:]) / 20
+        current_price = close_prices[-1]
+
+        print(f"   Current Price: {current_price:.5f}")
+        print(f"   SMA(20):       {sma_20:.5f}")
+
+        if current_price < sma_20:
+            print(f"📈 CALL signal on {asset}")
+            trade_id, deal = await client.buy(
+                asset=asset, amount=TRADE_AMOUNT, time=TRADE_DURATION, check_win=False
+            )
+            print(f"✅ Trade placed! ID: {trade_id}")
+        elif current_price > sma_20:
+            print(f"📉 PUT signal on {asset}")
+            trade_id, deal = await client.buy(
+                asset=asset, amount=TRADE_AMOUNT, time=TRADE_DURATION, check_win=False
+            )
+            print(f"✅ Trade placed! ID: {trade_id}")
+        else:
+            print("⏸️ No signal: Price equals SMA.")
+
+if __name__ == "__main__":
+    asyncio.run(main())import asyncio
+from BinaryOptionsToolsV2.pocketoption import PocketOptionAsync
+
+# --- CONFIGURATION ---
+# Paste your FULL SSID string here (from the browser's WebSocket message)
+SSID = '42["auth",{"session":"your_session_id_here","islive":1,"uid":12345,"platform":1}]'
+
+# Trading parameters
+ASSET = "EURUSD_otc"  # Over-The-Counter pair
+TRADE_AMOUNT = 1.0    # Amount in USD
+TRADE_DURATION = 60   # Duration in seconds
+
+async def main():
+    # Initialize the async client
+    async with PocketOptionAsync(ssid=SSID) as client:
+        print("✅ Connected to Pocket Option")
+        
+        # 1. Fetch and print the account balance
+        balance = await client.balance()
+        print(f"💰 Current Balance: ${balance:.2f}")
+        
+        # 2. Fetch historical candles for analysis
+        print("📊 Fetching historical data...")
+        candles = await client.get_candles(asset=ASSET, period=60, count=50)
+        
+        # 3. Simple Moving Average (SMA) strategy
+        close_prices = [c['close'] for c in candles]
+        sma_20 = sum(close_prices[-20:]) / 20
+        current_price = close_prices[-1]
+        
+        print(f"   Current Price: {current_price:.5f}")
+        print(f"   SMA(20):       {sma_20:.5f}")
+        
+        # 4. Trading logic: If price is below SMA, buy a CALL; if above, buy a PUT
+        if current_price < sma_20:
+            print("📈 Signal: CALL (Price below SMA)")
+            trade_id, deal = await client.buy(
+                asset=ASSET, 
+                amount=TRADE_AMOUNT, 
+                time=TRADE_DURATION, 
+                check_win=False
+            )
+            print(f"✅ CALL trade placed! ID: {trade_id}")
+            print(f"   Details: {deal}")
+            
+        elif current_price > sma_20:
+            print("📉 Signal: PUT (Price above SMA)")
+            trade_id, deal = await client.buy(
+                asset=ASSET, 
+                amount=TRADE_AMOUNT, 
+                time=TRADE_DURATION, 
+                check_win=False
+            )
+            print(f"✅ PUT trade placed! ID: {trade_id}")
+            print(f"   Details: {deal}")
+            
+        else:
+            print("⏸️ No signal: Price equals SMA, no trade placed.")
+
+if __name__ == "__main__":
+    asyncio.run(main())from pocketoptionapi.stable_api import PocketOption
+api = PocketOption(ssid, live=True)
+api.connect()
+balance = api.get_balance()
+result = api.buy(amount=10, active="EURUSD_otc", action="call", expirations=60)
